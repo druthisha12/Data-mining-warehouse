@@ -1,0 +1,9 @@
+{
+  "source_files": 4457,
+  "rows_before_dedup": 1137585,
+  "rows_after_dedup": 1120924,
+  "duplicates_removed": 16661,
+  "unresolved_product_rows": 354128,
+  "partition_files": 144,
+  "total_revenue": 522865735.75
+}

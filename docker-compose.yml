@@ -1,0 +1,68 @@
+services:
+  minio:
+    image: quay.io/minio/minio:latest
+    container_name: annapurna-minio
+    command: server /data --console-address ":9001"
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin123
+    volumes:
+      - minio_data:/data
+
+  minio-init:
+    image: quay.io/minio/mc:latest
+    container_name: annapurna-minio-init
+    depends_on:
+      - minio
+    entrypoint: /bin/sh
+    command: >
+      -c "until mc alias set local http://minio:9000 minioadmin minioadmin123;
+      do sleep 2;
+      done;
+      mc mb -p local/annapurna || true;
+      exit 0"
+
+  postgres:
+    image: postgres:16
+    container_name: annapurna-postgres
+    ports:
+      - "5433:5432"
+    environment:
+      POSTGRES_USER: annapurna
+      POSTGRES_PASSWORD: annapurna
+      POSTGRES_DB: annapurna
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+      - ./data/masters.sql:/docker-entrypoint-initdb.d/01_masters.sql:ro
+
+  loader:
+    build:
+      context: ./loader
+    container_name: annapurna-loader
+    depends_on:
+      - minio-init
+      - postgres
+    environment:
+      S3_ENDPOINT: http://minio:9000
+      S3_ACCESS_KEY: minioadmin
+      S3_SECRET_KEY: minioadmin123
+      S3_BUCKET: annapurna
+    volumes:
+      - ./data:/data:ro
+      - ./loader/output:/output
+
+  duckdb:
+    image: duckdb/duckdb:latest
+    container_name: annapurna-duckdb
+    depends_on:
+      - minio-init
+      - postgres
+    volumes:
+      - ./duckdb:/work
+
+volumes:
+  minio_data:
+  pg_data:
